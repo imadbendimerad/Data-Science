@@ -138,8 +138,8 @@ RFmodel <- train(x = cardio.train[,-14],
                  n.trees=500,
                  tuneGrid = rfGrid,
 )
-
 stopCluster(cl)
+print(RFmodel)
 plot(RFmodel)
 pred.rf.caret <- predict(RFmodel, cardio.test)
 TMC_RF <- mean(pred.rf.caret!=cardio.test$status) 
