@@ -89,7 +89,8 @@ cart.0 <- rpart(status~.,
 
 rpart.plot(cart.0)
 pred.0 <- predict(cart.0, cardio.test, type ="class")
-mean(pred.0!=cardio.test$status)
+TMC_sansE <- mean(pred.0!=cardio.test$status)
+print(TMC_sansE)
 
 
 ## CART avec élagage
@@ -100,7 +101,18 @@ cpOptim = cart.0$cptable[which.min(cart.0$cptable[,"xerror"]),"CP"]
 cart.pruned <- prune(cart.0, cpOptim)
 rpart.plot(cart.pruned)
 pred.pruned <- predict(cart.pruned, cardio.test, type ="class")
-mean(pred.pruned!=cardio.test$status)
+TMC_avecE <- mean(pred.pruned!=cardio.test$status)
+print(TMC_avecE)
+
+print(TMC_sansE)
+print(TMC_avecE)
+
+par(mfrow = c(1, 2))
+rpart.plot(cart.0)
+rpart.plot(cart.pruned)
+
+cart.0$variable.importance
+cart.0$variable.importance/sum(cart.0$variable.importance)
 
 cart.pruned$variable.importance
 cart.pruned$variable.importance/sum(cart.pruned$variable.importance)
@@ -130,7 +142,11 @@ RFmodel <- train(x = cardio.train[,-14],
 stopCluster(cl)
 plot(RFmodel)
 pred.rf.caret <- predict(RFmodel, cardio.test)
-mean(pred.rf.caret!=cardio.test$status) 
+TMC_RF <- mean(pred.rf.caret!=cardio.test$status) 
+print(TMC_RF)
+
+TMC_avecE<TMC_sansE
+TMC_RF<TMC_avecE
 
 
 ### ###  #####  #####    ####   #
