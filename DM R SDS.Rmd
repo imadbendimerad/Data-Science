@@ -1,0 +1,484 @@
+---
+title: "SDS DM Programmation en R"
+author: "Imad Bendimerad"
+date: "11/16/2022"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installation et chargement des Packages
+```{r Packages, message=FALSE, warning=FALSE}
+#install.packages("readxl")
+library(readxl)
+```
+
+## Partie 1:
+### Jeu de données
+
+Afin d'importer le sheet excel, on utilise read_excel en choisissant le calque "Body paramters" et on déclare le codage des NA qui est dans ce cas la chaine de caractères "NA":
+```{r Data}
+rm(list=ls())
+#setwd("~/Library/Mobile Documents/com~apple~CloudDocs/M2SDS")
+PhotoDRYAD <- read_excel("PhotoDRYAD.xlsx",sheet = "Body paramters", na = "NA")
+head(PhotoDRYAD)
+any(is.na(PhotoDRYAD$ID))
+which(is.na(PhotoDRYAD$ID))
+```
+Avant d'utiliser ce jeu de données, on remarque que les variables de la colonne ID ont une combinaison de 2 lettres, on vérifie alors si il y'a un ID qui se nomme "NA" et
+qui aurait pu être prit pour un NA dans la commande d'importation, et effectivement c'était le cas.   
+On remplace le NA par une chaine de caractères "NA" qui représente l'ID.
+
+```{r Data ID NA}
+PhotoDRYAD[2237,2] <- "NA"
+summary(PhotoDRYAD)
+```
+
+En appliquant le summary, on observe que les variables catégorielles Sex et ID et CaptivityWild ne sont pas dans le bon format et donc avant de manipuler ce jeu de données on commence par la rectification de cela:  
+```{r Data format}
+Data <-  PhotoDRYAD
+Data$Sex <-  as.factor(Data$Sex)
+Data$ID <-  as.factor(Data$ID)
+Data$CaptivityWild <-  as.factor(Data$CaptivityWild)
+summary(Data)
+```
+
+### 1 Combien y a-t-il de lignes ? Combien d’animaux différents sont inclus ? Combien y en a-t-il de chaque sexe ?
+
+```{r 1}
+dim(Data)
+length(levels(Data$ID))
+summary(Data$Sex)
+```
+Le jeu de données se compose de :  
+- 2475 lignes (observations).  
+- 400 différents animaux.  
+- 1356 éléphantes et 1119 éléphants (indices de correspondance tirés de l'énoncé).  
+  
+
+### 2 Faire un graphique montrant la relation entre l’âge en années et la taille (variable Height) en mètres, en distinguant les éléphantes des éléphants par des couleurs et des formes de points distinctes.
+
+```{r plot A H}
+colorplot <- Data$Sex
+colorplot <- ifelse(colorplot=="1","Red","Blue")
+plot(Data$Age/12,Data$Height/100,col= colorplot, xlab="Age (années)",
+     ylab="Taille (m)",pch=as.numeric(Data$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+Graphique montrant la relation entre l’âge en années et la taille en mètres des éléphantes et des éléphants  
+  
+
+### 3  Quelle est la proportion de données manquantes pour chacune des variables ?
+```{r prop.na}
+prop.na.Height <- sum(is.na(Data$Height)) / length(Data$Height)
+prop.na.Age <- sum(is.na(Data$Age)) / length(Data$Age)
+prop.na.CaptivityWild <- sum(is.na(Data$CaptivityWild)) / length(Data$CaptivityWild)
+prop.na.ChestGirth <- sum(is.na(Data$`Chest Girth`)) / length(Data$`Chest Girth`)
+prop.na.NeckCircumference <- sum(is.na(Data$`Neck Circumference`)) / length(Data$`Neck Circumference`)
+prop.na.Length <- sum(is.na(Data$Length)) / length(Data$Length)
+prop.na.Weight <- sum(is.na(Data$Weight)) / length(Data$Weight)
+prop.na.Footsize <- sum(is.na(Data$`Foot size`)) / length(Data$`Foot size`)
+prop.na <- list(prop.na.Height=prop.na.Height, prop.na.Age=prop.na.Age,  
+prop.na.CaptivityWild=prop.na.CaptivityWild, prop.na.ChestGirth=prop.na.ChestGirth,  
+prop.na.NeckCircumference=prop.na.NeckCircumference, prop.na.Length=prop.na.Length,  
+prop.na.Weight=prop.na.Weight, prop.na.Footsize=prop.na.Footsize)  
+prop.na
+```
+La liste contient l'indicateur de la variable et la proportion des NA qu'elle contient.
+  
+### 4 Extraire un jeu de données ne conservant que les colonnes ID, Sex, Age, Height, Chest.Girth, Weight.
+
+```{r data4}
+data4 <- Data[,c(2,1,3,5,6,9)]
+head(data4)
+```
+Extraction des variables(colonnes) dans l'ordre voulu.
+
+### 5 Ne conserver de data4 que les lignes où ne manque aucune donnée. Appelons le jeu de données obtenu data5. Combien a-t-il de lignes?
+
+
+```{r na.omit}
+data5 <- na.omit(data4)
+dim(data5)
+dim(data4)[1]-dim(data5)[1]
+```
+-On a 2374 lignes maintenant soit 101 observations supprimées.  
+  
+J'ai utilisé le na.omit car la question précise: "les lignes où ne manque AUCUNE donnée".  
+si on avait eu d'autres variables qui contiennent aussi des NA pour plusieurs autres observations comme ce qu'on avait pour "Data" avec la variable "NeckCircumference" (question 3), il est préférable d'exlure les NA en précisant les variables avec ce code:  
+data[which(!is.na(colonne de la variable concernée par les NA) & !is.na(une autre colonne)),]
+
+#### 5.1 la matrice des corrélations entre les variables Age, Height, Chest.Girth, Weight. :
+```{r corr}
+?cor
+mxcor <- cor(data5[,3:6])
+mxcor
+```
+
+### 6 extraire du jeu de données data5 deux jeux de données où chaque individu n’apparaîtra qu’une fois; appelons les data6.y et data6.o :
+
+Après avoir utilisé le na.omit, il y'aurait des individus "ID" qui n'auront plus aucune meusure et qu'on ne retrouve plus sur data 5, et pour s'assurer qu'on aura la bonne somme des individus on utilise le droplevels afin d'enlever les "levels" des IDs qui n'ont plus aucune observation
+
+
+```{r binaire}
+IDs <- levels(droplevels(data5$ID))
+nIDs <- length(IDs)
+nIDs
+y <-  NULL
+o <- NULL
+lenghtID <-  0
+
+for (i in 1:nIDs) {
+y <- c(y,lenghtID+which.min(data5$Age[data5$ID==IDs[i]]))
+lenghtID <- lenghtID + length(data5$Age[data5$ID==IDs[i]])
+}
+data6.y <- data5[y,]
+
+lenghtID = 0
+for (i in 1:nIDs) {
+o[i] <- lenghtID+which.max(data5$Age[data5$ID==IDs[i]])
+lenghtID <- lenghtID + length(data5$Age[data5$ID==IDs[i]])
+}
+data6.o <- data5[o,]
+
+head(data6.y)
+head(data6.o)
+
+```
+Ce petit algorithme que j'utilise pour répondre à cette question, fonctionne avec l'approche de parcourir ID par ID, en recherchant les numéros des ligne des observations avec l'age le plus petit(y)/grand(o).  
+Quand le i est à 1, data5$ID==IDs[i] mettra des trues que pour le premier individu, on prend les differents ages de ce même individu et on voit la position de l'age le plus petit(y)/grand(o), puis  on incrémente à chaque fois le nombre d'observations de l' "ID" actuel avec ceux des "ID"s d'avant afin de pouvoir se situer dans l'ID d'après et de continuer la boucle for.  
+Afin de stocker l'ensemble des numéros de lignes dans un vecteur, j'ai utilisé 2 différentes méthodes, tout en favorisant la méthode qui n'utilise pas le c()récursif comme indiqué sur le cour de R par souci de performances.  
+  
+La formation "Data Analysis for Life Sciences" de HarvardX, propose aussi l'utilisation du package "dplyr" afin de résoudre ce type de question d'extraction d'observations voulues.
+  
+
+#### 6.1 Faire un graphique analogue à celui de la question 2 pour:
+
+##### 6.1.1 Graphique montrant la relation entre la taille en mètre et l'âge en années de l'observation où l’individu est le plus jeune pour chaque éléphant et éléphante 
+data6.y
+```{r plot data6 y}
+colorplot6.y <- data6.y$Sex
+colorplot6.y <- ifelse(colorplot6.y=="1","Red","Blue")
+plot(data6.y$Age/12,data6.y$Height/100,col= colorplot6.y, xlab="Age (années)",
+     ylab="Taille (m)",pch=as.numeric(data6.y$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+
+
+##### 6.1.2 Graphique montrant la relation entre la taille en mètre et l'âge en années de l'observation où l’individu est le plus vieux pour chaque éléphant et éléphante 
+data6.o
+```{r plot data6 o}
+colorplot6.o <- data6.o$Sex
+colorplot6.o <- ifelse(colorplot6.o=="1","Red","Blue")
+plot(data6.o$Age/12,data6.o$Height/100,col= colorplot6.o, xlab="Age (années)",
+     ylab="Taille (m)",pch=as.numeric(data6.o$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+
+### 7 Matrices des corrélations entre les variables Age, Height, Chest.Girth, Weight
+
+#### 7.1 Pour data6.y
+```{r corr data6 y}
+
+mcor6.y <- cor(data6.y[,3:6])
+mcor6.y
+```
+
+#### 7.2 Pour data6.o
+```{r corr data6 o}
+
+mcor6.o <- cor(data6.o[,3:6])
+mcor6.o
+```
+
+
+
+
+
+### 8 Extraire de data6.o un jeu de données data8 ne contenant que des sujets d’âge >= 35 ans. Combien y a-t-il de lignes ?
+
+
+```{r data 8 more than 35YO}
+data8 <- subset(data6.o,Age/12 >= 35 )
+head(data8)
+dim(data8)
+```
+On a 151 individus pour qui l'age de la mesure où ils/elles étaient les plus vieux était superieur ou égale à 35ans.
+
+
+##### 8.1.1 Graphique montrant la relation entre la taille en mètre et le tour de poitrine en mètre des éléphants et des éléphantes :  
+  
+-
+```{r plot CG H}
+colorplot8 <- data8$Sex
+colorplot8 <- ifelse(colorplot8=="1","Red","Blue")
+plot(data8$`Chest Girth`/100,data8$Height/100,col= colorplot8, xlab="Tour de Poitrine (m)",
+     ylab="Taille (m)",pch=as.numeric(data8$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+Graphique montrant la relation entre la taille en mètre et le tour de poitrine en mètre des éléphants et des éléphantes  
+  
+##### 8.1.2 Graphique montrant la relation entre la le tour de poitrine en mètre et le poids en KG des éléphants et des éléphantes :  
+  
+-
+```{r plot CG W}
+plot(data8$Weight,data8$`Chest Girth`/100,col= colorplot8, xlab="Poids (KG)",
+     ylab="Tour de Poitrine (m)",pch=as.numeric(data8$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+Graphique montrant la relation entre la le tour de poitrine en mètre et le poids en KG des éléphants et des éléphantes  
+  
+
+##### 8.1.3 Graphique montrant la relation entre la taille en mètre et le poids en KG des éléphants et des éléphantes :  
+  
+-
+```{r plot H W}
+plot(data8$Weight,data8$Height/100,col= colorplot8, xlab="Poids (KG)",
+     ylab="Taille (m)",pch=as.numeric(data8$Sex)-1)
+legend("topleft", legend = c("M","F"), col = c("Blue","Red"), pch=c(1,0), bty = "n")
+```
+Graphique montrant la relation entre la taille en mètre et le poids en KG des éléphants et des éléphantes  
+  
+  
+
+- Sur les 3 graphiques, on observe une distinction des observations pour les éléphants par rapport aux éléphantes.
+
+### 9 l'algorithme Kmeans.  
+  
+#### 9.1 
+  
+- 
+```{r kmeans}
+?kmeans
+head(data8)
+kmeans8 <- kmeans(data8[,4:6],2)
+plot(data8[,4:6], col = kmeans8$cluster)
+```
+En visualisant les clusters créés entre les 3 variables, on voit une claire ressemblance aux graphiques de la question d'avant, ce qui nous ramene à mettre l'hypothese que les clusters que l'algorithme kmeans a trouvé pour data8 correspondent au sexe des éléphants.  
+
+- 
+```{r kmeans TMC}
+summary(kmeans8)
+head(kmeans8)
+prop_mauvais_cluster <- ifelse((sum(kmeans8$cluster != data8$Sex)/length(data8$Sex))<0.5,(sum(kmeans8$cluster != data8$Sex)/length(data8$Sex)),(sum(kmeans8$cluster == data8$Sex)/length(data8$Sex)))
+prop_mauvais_cluster
+```
+En explorant le résultat de kmeans, on voit que les clusters sont codés en 1 et 2, ce qui nous arrange du fait que le codage de la variable $Sex prend aussi 1 et 2, le problème c'est que kmeans peut donner le 1 pour le cluster en bas a gauche sur les graphique et en le relancant l'algorithme il peut donner au meme cluster le code 2, l'important c'est que les individus qui sont ensembles dans un cluster restent dans le meme cluster meme si le codage change, afin de remedier a cet aléas on peut soit fixer la graine du generateur avec set.seed, ou faire une condition pour que si le taux de mauvais classement dépasse 50 %, cela le considerera comme taux de bon classement pour le codage inverse, ainsi on attribu le sexe au cluster qui le correspond le plus à chaque fois, et notre taux de mauvais classement sera stable.  
+  
+
+#### 9.2 Kmeans sur les variables centrées réduites  
+
+- 
+```{r kmeans CR}
+data8_CR <- data8
+data8_CR[,4:6] <- scale(data8[,4:6])
+kmeans8_CR <- kmeans(data8_CR[,4:6],2)
+
+prop_mauvais_cluster_CR <-  ifelse((sum(kmeans8_CR$cluster != data8$Sex)/length(data8$Sex))<0.5,(sum(kmeans8_CR$cluster != data8$Sex)/length(data8$Sex)),(sum(kmeans8_CR$cluster == data8$Sex)/length(data8$Sex)))
+prop_mauvais_cluster_CR
+prop_mauvais_cluster - prop_mauvais_cluster_CR
+```
+
+
+Effectivement, cela améliore le résultat de presque de 2%.
+
+## Partie 2: Estimation du Déséquilibre de Liaison avec l’algorithme EM
+
+### 1 E Step
+On mets en place une fonction qui prend comme entrée un vecteur f de 4 frequences (fAB, fAb, faB, fab) et qui calcule la valeur tau pour nous:
+```{r E Step}
+E.step <- function(f) {
+  a <- 2*f[1]*f[4];
+  b <- 2*f[1]*f[4]+2*f[2]*f[3]
+  tau <- a/b
+  return(tau)
+}
+E.step(c(0.25, 0.25, 0.25, 0.25))
+E.step(c(0.10, 0.20, 0.30, 0.40))
+```
+
+### 2 M Step
+On met en place une fonction qui prend comme entrée une valeur de tau et une matrice d'effectif génotypiques x de dimensions 3x3 et nous donne comme sortie les frequences (fAB, fAb, faB, fab).
+L'objectif est de ne rien fixer afin d'utiliser cette fonction avec n'importe quelle matrice x et n'importe quelle valeur de tau spécifiée:
+```{r M Step}
+M.step<- function(tau, x) {
+  a <- (1/(2*sum(x)))*(2*x[1,1]+x[1,2]+x[2,1]+tau*x[2,2])
+  b <- (1/(2*sum(x)))*(2*x[1,3]+x[1,2]+x[2,3]+(1-tau)*x[2,2])
+  c <- (1/(2*sum(x)))*(2*x[3,1]+x[2,1]+x[3,2]+(1-tau)*x[2,2])
+  d <- (1/(2*sum(x)))*(2*x[3,3]+x[3,2]+x[2,3]+tau*x[2,2])
+  
+  f <- c(a,b,c,d)
+  names(f) <- c("AA","Ab","aB","ab")
+  return(f)
+}
+X1 <- matrix(c(91, 50, 3, 74, 103, 15, 7, 31, 26), nrow = 3)
+M.step(0.5,X1)
+M.step(0.719, X1)
+```
+
+
+### 3 Calcule du désiquilibre gamétique D  
+  
+```{r Desequilibre}
+DL<- function(f) {
+  a <- f[1]+f[2];
+  b <- f[1]+f[3]
+  return(f[1]-a*b)
+}
+
+
+DL( c(0.25, 0.25, 0.25, 0.25) )
+DL( c(0.10, 0.20, 0.30, 0.40) )
+```
+
+### 4 Algorithme E M avec n.iter fois répetition des étapes  
+  
+#### 4.1 Méthode détaillée  
+  
+On initie l'algorithme avec un tau de 0.5.  
+  
+- 
+```{r EMO}
+EM0 <- function(x, n.iter = 10) {
+  tau <- 0.5
+
+  for (i in 1:n.iter) {
+    a <- (1/(2*sum(x)))*(2*x[1,1]+x[1,2]+x[2,1]+tau*x[2,2])
+    b <- (1/(2*sum(x)))*(2*x[1,3]+x[1,2]+x[2,3]+(1-tau)*x[2,2])
+    c <- (1/(2*sum(x)))*(2*x[3,1]+x[2,1]+x[3,2]+(1-tau)*x[2,2])
+    d <- (1/(2*sum(x)))*(2*x[3,3]+x[3,2]+x[2,3]+tau*x[2,2])
+    
+    f <- c(a,b,c,d)
+    
+    g <- 2*f[1]*f[4]
+    h <- 2*f[1]*f[4]+2*f[2]*f[3]
+    tau <- (g/h)
+    
+  }
+  a <- f[1]+f[2];
+  b <- f[1]+f[3]
+  D <- (f[1]-a*b)
+  
+  names(f) <- c("AA","Ab","aB","ab")
+  l <- list(f=f,D=D)
+  return(l)
+}
+EM0(X1)
+EM0(X1, 1e3)
+```
+
+#### 4.2 Méthode avec utilisation des fonctions créées avant:  
+  
+- 
+```{r EMO simplified}
+EM0 <- function(x, n.iter = 10) {
+  tau <- 0.5
+  for (i in 1:n.iter) {
+    f <- M.step(tau,x)
+    tau <- E.step(f)
+  }
+  D <- DL(f)
+  l <- list(f=f,D=D)
+  return(l)
+}
+EM0(X1)
+EM0(X1, 1e3)
+```
+
+
+
+### 5 Algorithme E M qui s'arrete une fois la difference entre le dernier tau et celui d'avant atteint une valeur seuil petite définie sans dépasser un nombre n.iter fois d'itération des E et M steps
+l'utilisation du debugonce (EM) est conseillée 
+
+#### 5.1 Méthode détaillée   
+  
+On initie l'algorithme avec un tau de 0.5.  
+La différence (diff) entre le dernier tau et celui d'avant est initiée avec un 0.5 du fait que tau a été initié avec 0.5 et que à chaque itération sa valeur diminue et donc tau est la plus grande valeur que ça peut prendre.  
+  
+On utilise la boucle while car on ne connait pas le nombre d'itérations au préalable, on définit la condition pour rester dans cette boucle, qui est le fait que la différence entre le dernier tau obtenu après une itération de M et E steps et le tau de l'itération d'avant soit plus grand que l'eps défini et que le nombre d'itérations soit inferieur à n.iter défini aussi.
+  
+C'est possible de remplacer le "l" de la liste avec celui qui est en commentaire apres si on veut avoir dans les résultats la valeur de la différence afin de s'assurer qu'elle a atteint une valeur inférieure ou égale à l'eps pour sortir de la boucle  
+  
+```{r EM Fun detailed}
+EM <- function(x,eps = 1e-6, n.iter = 100) {
+  tau <- 0.5
+  tau_vect <-  tau
+  diff <- tau
+  i <- 1
+  while (diff > eps & i < n.iter ) {
+    a <- (1/(2*sum(x)))*(2*x[1,1]+x[1,2]+x[2,1]+tau*x[2,2])
+    b <- (1/(2*sum(x)))*(2*x[1,3]+x[1,2]+x[2,3]+(1-tau)*x[2,2])
+    c <- (1/(2*sum(x)))*(2*x[3,1]+x[2,1]+x[3,2]+(1-tau)*x[2,2])
+    d <- (1/(2*sum(x)))*(2*x[3,3]+x[3,2]+x[2,3]+tau*x[2,2])
+    f <- c(a,b,c,d)
+    
+    g <- 2*f[1]*f[4]
+    h <- 2*f[1]*f[4]+2*f[2]*f[3]
+    tau <- (g/h)
+    #tau_vect <- c(tau_vect,tau)
+    tau_vect[length(tau_vect)+1] <- tau
+    diff <- (tau_vect[length(tau_vect)]-tau_vect[length(tau_vect)-1])
+    i <- i+1
+  }
+  a <- (1/(2*sum(x)))*(2*x[1,1]+x[1,2]+x[2,1]+tau*x[2,2])
+  b <- (1/(2*sum(x)))*(2*x[1,3]+x[1,2]+x[2,3]+(1-tau)*x[2,2])
+  c <- (1/(2*sum(x)))*(2*x[3,1]+x[2,1]+x[3,2]+(1-tau)*x[2,2])
+  d <- (1/(2*sum(x)))*(2*x[3,3]+x[3,2]+x[2,3]+tau*x[2,2])
+  
+  f <- c(a,b,c,d)
+  
+  a <- f[1]+f[2];
+  b <- f[1]+f[3]
+  D <- (f[1]-a*b)
+  
+  names(f) <- c("AA","Ab","aB","ab")
+  l <- list(f=f,D=D,n.iter=i)
+  #l <- list(f=f,D=D,n.iter=i,diff=diff)
+  return(l)
+}
+#debugonce(EM)
+EM(X1)
+EM(X1, 0)
+```
+
+##### 5.1.1 tester la partie n.iter de l'EM algorithme  
+  
+Afin de tester que la limite n.iter fonctionne, on peut reprendre l'exemple EM(X1, 0) qui a eu besoin de n.iter=33 pour atteindre une différence de 0 et on fixe n.iter = 30.
+  
+```{r EM n.iter test}
+EM(X1, 0, 30)
+```
+l'algorithme s'arrete bien a 30 itérations.  
+  
+
+#### 5.2 Méthode avec utilisation des fonctions créées dans les questions précédentes:  
+  
+-  
+```{r EM Fun}
+EM <- function(x,eps = 1e-6, n.iter = 100) {
+  tau <- 0.5
+  tau_vect <-  tau
+  diff <- tau
+  i <- 1
+  while (diff > eps & i < n.iter ) {
+    f <- M.step(tau,x)
+    tau <- E.step(f)
+    tau_vect[length(tau_vect)+1] <- tau
+    diff <- (tau_vect[length(tau_vect)]-tau_vect[length(tau_vect)-1])
+    i <- i+1
+  }
+  f <- M.step(tau,x)
+  D <- DL(f)
+  l <- list(f=f,D=D,n.iter=i)
+  return(l)
+}
+EM(X1)
+EM(X1, 0)
+EM(X1, 0, 30)
+```
