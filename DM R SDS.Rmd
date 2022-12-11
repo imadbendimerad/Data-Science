@@ -266,10 +266,13 @@ En visualisant les clusters créés entre les 3 variables, on voit une claire re
 ```{r kmeans TMC}
 summary(kmeans8)
 head(kmeans8)
-prop_mauvais_cluster <- ifelse((sum(kmeans8$cluster != data8$Sex)/length(data8$Sex))<0.5,(sum(kmeans8$cluster != data8$Sex)/length(data8$Sex)),(sum(kmeans8$cluster == data8$Sex)/length(data8$Sex)))
+prop_mauvais_cluster <- ifelse((sum(kmeans8$cluster != data8$Sex)/length(data8$Sex))<0.5,  
+(sum(kmeans8$cluster !=data8$Sex)/length(data8$Sex)),  
+(sum(kmeans8$cluster == data8$Sex)
+/length(data8$Sex)))
 prop_mauvais_cluster
 ```
-En explorant le résultat de kmeans, on voit que les clusters sont codés en 1 et 2, ce qui nous arrange du fait que le codage de la variable $Sex prend aussi 1 et 2, le problème c'est que kmeans peut donner le 1 pour le cluster en bas a gauche sur les graphique et en le relancant l'algorithme il peut donner au meme cluster le code 2, l'important c'est que les individus qui sont ensembles dans un cluster restent dans le meme cluster meme si le codage change, afin de remedier a cet aléas on peut soit fixer la graine du generateur avec set.seed, ou faire une condition pour que si le taux de mauvais classement dépasse 50 %, cela le considerera comme taux de bon classement pour le codage inverse, ainsi on attribu le sexe au cluster qui le correspond le plus à chaque fois, et notre taux de mauvais classement sera stable.  
+En explorant le résultat de kmeans, on voit que les clusters sont codés en 1 et 2, ce qui nous arrange du fait que le codage de la variable $Sex prend aussi 1 et 2, le problème c'est que kmeans peut donner le 1 pour le cluster en bas à gauche sur les graphique et en le relancant, l'algorithme peut donner au meme cluster le code 2, l'important c'est que les individus qui sont ensembles dans un cluster restent dans le meme cluster meme si le codage change, afin de remedier à cet aléas, on peut soit fixer la graine du generateur avec set.seed, soit faire une condition avec ifelse pour que si le taux de mauvais classement dépasse 50 %, cela le considerera comme taux de bon classement pour le codage inverse, ainsi on attribu le sexe au cluster qui le correspond le plus à chaque fois, ainsi notre taux de mauvais classement sera stable.  
   
 
 #### 9.2 Kmeans sur les variables centrées réduites  
@@ -280,7 +283,9 @@ data8_CR <- data8
 data8_CR[,4:6] <- scale(data8[,4:6])
 kmeans8_CR <- kmeans(data8_CR[,4:6],2)
 
-prop_mauvais_cluster_CR <-  ifelse((sum(kmeans8_CR$cluster != data8$Sex)/length(data8$Sex))<0.5,(sum(kmeans8_CR$cluster != data8$Sex)/length(data8$Sex)),(sum(kmeans8_CR$cluster == data8$Sex)/length(data8$Sex)))
+prop_mauvais_cluster_CR <-  ifelse((sum(kmeans8_CR$cluster != data8$Sex  
+)/length(data8$Sex))<0.5,(sum(kmeans8_CR$cluster != data8$Sex)/length(data8$Sex))  
+,(sum(kmeans8_CR$cluster == data8$Sex)/length(data8$Sex)))
 prop_mauvais_cluster_CR
 prop_mauvais_cluster - prop_mauvais_cluster_CR
 ```
